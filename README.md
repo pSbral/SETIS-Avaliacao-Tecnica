@@ -267,5 +267,3 @@ Ou pelo Eclipse → Run As → JUnit Test.
 
 Projeto desenvolvido por **Pedro Loscilha Sobral**
 Para a **Avaliação Técnica da SETIS**
-
-Só pedir.
