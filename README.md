@@ -51,11 +51,11 @@ src/main/java/com.psbral.projeto/
     │     └── UserRepository.java
     ├── services/
     │     └── UserService.java
-    └── ProjetoApplication.java
+    └── SetisAvaliacaoTecnicaApplication.java
 
 src/test/java/com.psbral.projeto/
     └── services/
-          └── UserServiceTest.java
+          └── SetisAvaliacaoTecnicaApplicationTests.java
 ```
 
 ---
