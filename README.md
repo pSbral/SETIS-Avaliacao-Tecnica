@@ -1,45 +1,35 @@
-# SETIS – Avaliação Técnica (API REST em Java + Spring Boot)
+# SETIS – Avaliação Técnica
 
-Este projeto consiste no desenvolvimento de uma **API REST** para gerenciamento de usuários, seguindo os requisitos da avaliação técnica SETIS.
-A API foi desenvolvida utilizando **Java 17**, **Spring Boot**, **Spring Data JPA**, **H2 Database**, **Bean Validation**, **Swagger/OpenAPI** e **JUnit 5 com Mockito**.
+API REST para Gerenciamento de Usuários
+
+Este projeto foi desenvolvido como parte da Avaliação Técnica da SETIS.
+Consiste em uma **API REST completa**, construída com Java + Spring Boot, utilizando **PostgreSQL em Docker** como diferencial técnico.
+
+A aplicação permite realizar operações CRUD para usuários, garantindo:
+
+* Validação de campos
+* E-mail único
+* Datas gerenciadas automaticamente
+* Documentação Swagger
+* Testes unitários com JUnit + Mockito
 
 ---
 
-## **1. Tecnologias utilizadas**
+## **1. Tecnologias Utilizadas**
 
 * **Java 17**
 * **Spring Boot 3.x**
-* **Spring Web** (REST Controller)
-* **Spring Data JPA** (Hibernate)
-* **H2 Database** (ambiente de desenvolvimento)
-* **Bean Validation (Jakarta Validation)**
+* **Spring Web (REST)**
+* **Spring Data JPA (Hibernate)**
+* **PostgreSQL via Docker**
+* **Bean Validation**
 * **Lombok**
-* **Swagger / OpenAPI (springdoc-openapi)**
-* **JUnit 5 + Mockito** (testes unitários)
+* **Springdoc OpenAPI (Swagger UI)**
+* **JUnit 5 + Mockito**
 
 ---
 
-## **2. Funcionalidades da API**
-
-A API permite realizar operações CRUD para o recurso **Usuário**:
-
-* Criar usuário
-* Listar todos os usuários
-* Buscar usuário por ID
-* Atualizar usuário
-* Deletar usuário
-
-Além disso, implementa:
-
-* Validação de campos obrigatórios
-* Validação de tamanho de campos
-* Validação de e-mail único
-* Datas de criação e edição gerenciadas automaticamente
-* Testes unitários do serviço
-
----
-
-## **3. Estrutura do Projeto**
+## **2. Arquitetura do Projeto**
 
 ```
 src/main/java/com.psbral.projeto/
@@ -53,50 +43,100 @@ src/main/java/com.psbral.projeto/
     │     └── UserService.java
     └── SetisAvaliacaoTecnicaApplication.java
 
-src/test/java/com.psbral.projeto/
-    └── services/
-          └── SetisAvaliacaoTecnicaApplicationTests.java
+src/test/java/com.psbral.projeto/services/
+    └── UserServiceTest.java
 ```
 
 ---
 
-## **4. Modelo de Usuário**
+## **3. Modelo de Usuário**
 
-### Campos:
-
-| Campo          | Tipo          | Regra                                          |
-| -------------- | ------------- | ---------------------------------------------- |
-| id             | Long          | Gerado automaticamente                         |
-| nome           | String        | Obrigatório, mínimo 4, máximo 50               |
-| email          | String        | Obrigatório, formato válido, único, máximo 254 |
-| dataNascimento | LocalDate     | Obrigatório, não pode ser futura               |
-| dataCriacao    | LocalDateTime | Gerenciado automaticamente (@PrePersist)       |
-| dataEdicao     | LocalDateTime | Gerenciado automaticamente (@PreUpdate)        |
+| Campo          | Tipo          | Regra                                      |
+| -------------- | ------------- | ------------------------------------------ |
+| id             | Long          | Gerado automaticamente                     |
+| nome           | String        | Entre 4 e 50 caracteres                    |
+| email          | String        | Formato válido, único, máx. 254 caracteres |
+| dataNascimento | LocalDate     | Não pode ser futura                        |
+| dataCriacao    | LocalDateTime | Gerado pela API (@PrePersist)              |
+| dataEdicao     | LocalDateTime | Atualizado pela API (@PreUpdate)           |
 
 ---
 
-## **5. Como rodar o projeto**
+# **4. Provisionando o Banco via Docker**
 
-### **Pré-requisitos**
+Este projeto utiliza PostgreSQL rodando em container Docker.
 
-* Java 17 instalado
-* Maven instalado ou wrapper (`./mvnw`)
-* Eclipse/IntelliJ opcional
+### **4.1 Arquivo docker-compose.yml**
 
-### **Rodando**
+Presente na raiz do projeto:
 
-No terminal:
+```yaml
+version: '3.1'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres-setis
+    restart: always
+    environment:
+      POSTGRES_USER: setis
+      POSTGRES_PASSWORD: setis123
+      POSTGRES_DB: usuarios
+    ports:
+      - "5432:5432"
+```
+
+### **4.2 Subindo o banco**
+
+No terminal (na raiz do projeto):
+
+```bash
+docker compose up -d
+```
+
+Para verificar:
+
+```bash
+docker ps
+```
+
+O container deve aparecer como `postgres-setis`.
+
+---
+
+## **5. Configuração do Banco**
+
+O arquivo `application.properties` está configurado para usar o banco Docker:
+
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/usuarios
+spring.datasource.username=setis
+spring.datasource.password=setis123
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.show-sql=true
+```
+
+---
+
+# **6. Como Rodar a Aplicação**
+
+### **Via Eclipse/IntelliJ**
+
+Execute a classe:
+
+```
+SetisAvaliacaoTecnicaApplication
+```
+
+### **Via terminal**
 
 ```bash
 mvn spring-boot:run
 ```
 
-Ou pelo Eclipse:
-
-* Run → Run As → Java Application
-* Selecione: `ProjetoApplication`
-
-A API subirá em:
+A API ficará disponível em:
 
 ```
 http://localhost:8080
@@ -104,29 +144,9 @@ http://localhost:8080
 
 ---
 
-## **6. Banco H2**
+# **7. Endpoints**
 
-A aplicação usa banco em memória.
-
-Console H2 (opcional):
-
-```
-http://localhost:8080/h2-console
-```
-
-Configuração no `application.properties`:
-
-```
-spring.datasource.url=jdbc:h2:mem:testdb
-spring.jpa.hibernate.ddl-auto=update
-spring.h2.console.enabled=true
-```
-
----
-
-## **7. Endpoints da API**
-
-### **Criar usuário**
+## **Criar usuário**
 
 `POST /users`
 
@@ -140,124 +160,101 @@ spring.h2.console.enabled=true
 
 ---
 
-### **Listar todos**
+## **Listar usuários**
 
 `GET /users`
 
 ---
 
-### **Buscar por ID**
+## **Buscar por ID**
 
 `GET /users/{id}`
 
 ---
 
-### **Atualizar usuário**
+## **Atualizar usuário**
 
 `PUT /users/{id}`
 
-```json
-{
-  "nome": "Joao Silva Atualizado",
-  "email": "joao@example.com",
-  "dataNascimento": "1990-05-10"
-}
-```
-
 ---
 
-### **Deletar usuário**
+## **Deletar usuário**
 
 `DELETE /users/{id}`
 
 ---
 
-## **8. Regras de validação**
+# **8. Testando com Insomnia/Postman**
 
-* `nome`
+Exemplo de JSON:
 
-  * obrigatório
-  * mínimo 4 caracteres
-  * máximo 50
-
-* `email`
-
-  * obrigatório
-  * formato válido
-  * máximo 254
-  * não pode repetir no sistema
-
-* `dataNascimento`
-
-  * obrigatório
-  * não pode ser uma data futura
-
-* `dataCriacao` e `dataEdicao`
-
-  * gerenciadas pela API através de `@PrePersist` e `@PreUpdate`
-
----
-
-## **9. Testes Unitários**
-
-Os testes unitários utilizam **JUnit 5 e Mockito**, cobrindo:
-
-* Inserção com e sem e-mail duplicado
-* Atualização com validação de e-mail
-* Remoção com erro ou sucesso
-* Busca por ID válida e inválida
-* CopyToUser (atualização de campos)
-* Comportamento correto do repository mockado
-
-Para rodar:
-
-```bash
-mvn test
+```json
+{
+  "nome": "Usuario Docker",
+  "email": "usuario@example.com",
+  "dataNascimento": "1995-10-10"
+}
 ```
 
-Ou:
-
-No Eclipse → Run As → JUnit Test
-
 ---
 
-## **10. Documentação Swagger**
+# **9. Documentação Swagger**
 
-A documentação fica disponível em:
+Disponível em:
 
 ```
 http://localhost:8080/swagger-ui/index.html
 ```
 
-Dependência usada no `pom.xml`:
+A API também expõe o JSON OpenAPI em:
 
-```xml
-<dependency>
-    <groupId>org.springdoc</groupId>
-    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-    <version>2.8.4</version>
-</dependency>
+```
+http://localhost:8080/v3/api-docs
 ```
 
 ---
 
-## **11. Erros retornados**
+# **10. Testes Unitários**
 
-### E-mail já cadastrado
+Classe: `UserServiceTest`
+
+Cobertura:
+
+* Inserção com e sem e-mail duplicado
+* Atualização com validação de conflito de e-mail
+* Busca por ID inexistente
+* Remoção com falha de integridade
+* Remoção de usuário existente
+* Comportamento dos mocks
+* Regras de negócio do Service
+
+### Rodar testes:
+
+```bash
+mvn test
+```
+
+Ou pelo Eclipse → Run As → JUnit Test.
+
+---
+
+# **11. Mensagens de Erro Padronizadas**
+
+### Email duplicado:
 
 ```
 400 BAD REQUEST
-"E-mail já cadastrado: joao@example.com"
+"E-mail já cadastrado: xxx"
 ```
 
-### Usuário não encontrado
+### Usuário não encontrado:
 
 ```
 400 BAD REQUEST
-"Usuário não encontrado - id: 5"
+"Usuário não encontrado - id: X"
 ```
 
-### Violação de integridade ao deletar
+### Violação de integridade:
 
 ```
 400 BAD REQUEST
@@ -266,7 +263,9 @@ Dependência usada no `pom.xml`:
 
 ---
 
-## **12. Autor**
+# **12. Autor**
 
-Projeto desenvolvido por **Pedro Loscilha Sobral** para a **avaliação técnica SETIS**.
+Projeto desenvolvido por **Pedro Loscilha Sobral**
+Para a **Avaliação Técnica da SETIS**
 
+Só pedir.
