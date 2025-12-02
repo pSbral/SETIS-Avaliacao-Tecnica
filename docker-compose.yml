@@ -1,0 +1,11 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres-setis
+    restart: always
+    environment:
+      POSTGRES_USER: setis
+      POSTGRES_PASSWORD: setis123
+      POSTGRES_DB: usuarios
+    ports:
+      - "5432:5432"
