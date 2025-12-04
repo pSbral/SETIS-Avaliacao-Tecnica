@@ -55,9 +55,9 @@ public class UserService implements ServiceRepository {
     // UPDATE
     // COPY
     private void copyToUser(UserDTO source, User target) {
-        target.setNome(source.getNome());
-        target.setEmail(source.getEmail());
-        target.setDataNascimento(source.getDataNascimento());
+        target.setNome(source.name());
+        target.setEmail(source.email());
+        target.setDataNascimento(source.birthDate());
     }
 
     @Transactional
@@ -66,10 +66,10 @@ public class UserService implements ServiceRepository {
 
             User user = repository.getReferenceById(id);
 
-            if (!user.getEmail().equals(entity.getEmail())
-                    && repository.existsByEmail(entity.getEmail())) {
+            if (!user.getEmail().equals(entity.email())
+                    && repository.existsByEmail(entity.email())) {
 
-                throw new IllegalArgumentException("E-mail já cadastrado: " + entity.getEmail());
+                throw new IllegalArgumentException("E-mail já cadastrado: " + entity.email());
             }
 
             copyToUser(entity, user);

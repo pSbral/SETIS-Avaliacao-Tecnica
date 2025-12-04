@@ -19,21 +19,22 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
 
-    @Autowired
     private final ServiceRepository service;
 
     // CREATE
     // POST /users
     @PostMapping
     public ResponseEntity<UserDTO> insert(@RequestBody @Valid UserDTO dto){
-        dto = service.insert(dto);
+        UserDTO saved = service.insert(dto);
+
         URI uri = ServletUriComponentsBuilder
                 .fromCurrentRequest()
                 .path("/{id}")
-                .buildAndExpand(dto.getId())
+                .buildAndExpand(saved.id())
                 .toUri();
 
-        return ResponseEntity.created(uri).body(dto);
+        // 201 Created + Location header
+        return ResponseEntity.created(uri).body(saved);
     }
 
     // READ – FIND ALL
@@ -56,7 +57,7 @@ public class UserController {
     // PUT /users/{id}
     @PutMapping("/{id}")
     public UserDTO update(@PathVariable Long id,
-                       @Valid @RequestBody UserDTO user) {
+                          @Valid @RequestBody UserDTO user) {
         return service.update(id, user);
     }
 

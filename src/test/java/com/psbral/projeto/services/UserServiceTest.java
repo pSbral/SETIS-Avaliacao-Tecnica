@@ -45,12 +45,14 @@ class UserServiceTest {
     }
 
     private UserDTO buildDTO(Long id, String nome, String email) {
-        UserDTO dto = new UserDTO();
-        dto.setId(id);
-        dto.setNome(nome);
-        dto.setEmail(email);
-        dto.setDataNascimento(LocalDate.of(2000, 1, 1));
-        return dto;
+        return new UserDTO(
+        id,
+        nome,
+        email,
+        LocalDate.of(2000, 1, 1),
+        null,
+        null
+        );
     }
 
     // INSERT
@@ -68,10 +70,10 @@ class UserServiceTest {
 
         UserDTO result = service.insert(dto);
 
-        assertEquals("Fulano", result.getNome());
-        assertEquals("fulano@email.com", result.getEmail());
+        assertEquals("Fulano", result.name());
+        assertEquals("fulano@email.com", result.email());
         verify(repository).save(any(User.class));
-        verify(repository).existsByEmail(result.getEmail());
+        verify(repository).existsByEmail(result.email());
     }
 
     @Test
@@ -106,8 +108,8 @@ class UserServiceTest {
         List<UserDTO> result = service.findAll();
 
         assertEquals(2, result.size());
-        assertEquals("Fulano", result.get(0).getNome());
-        assertEquals("Ciclano", result.get(1).getNome());
+        assertEquals("Fulano", result.get(0).name());
+        assertEquals("Ciclano", result.get(1).name());
         verify(repository).findAll();
     }
 
@@ -119,8 +121,8 @@ class UserServiceTest {
 
         UserDTO result = service.findById(1L);
 
-        assertEquals(1L, result.getId());
-        assertEquals("Fulano", result.getNome());
+        assertEquals(1L, result.id());
+        assertEquals("Fulano", result.name());
         verify(repository).findById(1L);
     }
 
@@ -152,9 +154,9 @@ class UserServiceTest {
 
         UserDTO result = service.update(1L, dto);
 
-        assertEquals(1L, result.getId());
-        assertEquals("Novo Nome", result.getNome());
-        assertEquals("novo@email.com", result.getEmail());
+        assertEquals(1L, result.id());
+        assertEquals("Novo Nome", result.name());
+        assertEquals("novo@email.com", result.email());
         verify(repository).getReferenceById(1L);
         verify(repository).save(existing);
     }
@@ -174,7 +176,7 @@ class UserServiceTest {
         );
 
         assertTrue(ex.getMessage().contains("E-mail já cadastrado"));
-        verify(repository).existsByEmail(dto.getEmail());
+        verify(repository).existsByEmail(dto.email());
     }
 
     @Test
