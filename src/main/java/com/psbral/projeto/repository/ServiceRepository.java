@@ -6,10 +6,10 @@ import java.util.List;
 
 public interface ServiceRepository {
 
-    public UserDTO insert(UserDTO dto);
-    public List<UserDTO> findAll();
-    public UserDTO findById(Long id);
-    public UserDTO update(Long id, UserDTO entity);
-    public void delete(Long id);
+    UserDTO insert(UserDTO dto);
+    List<UserDTO> findAll();
+    UserDTO findById(Long id);
+    UserDTO update(Long id, UserDTO entity);
+    void delete(Long id);
 
 }

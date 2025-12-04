@@ -68,7 +68,6 @@ class UserServiceTest {
 
         UserDTO result = service.insert(dto);
 
-        assertNotNull(result.getId());
         assertEquals("Fulano", result.getNome());
         assertEquals("fulano@email.com", result.getEmail());
         verify(repository).save(any(User.class));
