@@ -1,12 +1,13 @@
 package com.psbral.projeto.services;
 
+import com.psbral.projeto.dto.UserDTO;
 import com.psbral.projeto.models.User;
 import com.psbral.projeto.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.modelmapper.ModelMapper;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -17,85 +18,115 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-    @InjectMocks
-    private UserService service;
-
     @Mock
     private UserRepository repository;
 
-    private User user;
+    private UserService service;
 
     @BeforeEach
     void setUp() {
-        user = new User();
-        user.setId(1L);
-        user.setNome("Joao Silva");
-        user.setEmail("joao@example.com");
-        user.setDataNascimento(LocalDate.of(1990, 1, 1));
+        ModelMapper modelMapper = new ModelMapper();
+        service = new UserService(repository, modelMapper);
+    }
+
+    private User buildUser(Long id, String nome, String email) {
+        User u = new User();
+        u.setId(id);
+        u.setNome(nome);
+        u.setEmail(email);
+        u.setDataNascimento(LocalDate.of(2000, 1, 1));
+        return u;
+    }
+
+    private UserDTO buildDTO(Long id, String nome, String email) {
+        UserDTO dto = new UserDTO();
+        dto.setId(id);
+        dto.setNome(nome);
+        dto.setEmail(email);
+        dto.setDataNascimento(LocalDate.of(2000, 1, 1));
+        return dto;
     }
 
     // INSERT
-
     @Test
-    void insert_DeveSalvarQuandoEmailNaoExiste() {
-        when(repository.existsByEmail(user.getEmail())).thenReturn(false);
-        when(repository.save(user)).thenReturn(user);
+    void insert_sucess() {
+        UserDTO dto = buildDTO(1L, "Fulano", "fulano@email.com");
 
-        User resultado = service.insert(user);
+        when(repository.save(any(User.class))).thenAnswer(invocation -> {
+            User u = invocation.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+        when(repository.existsByEmail("fulano@email.com"))
+                .thenReturn(false);
 
-        assertNotNull(resultado);
-        assertEquals(user.getEmail(), resultado.getEmail());
-        verify(repository).existsByEmail(user.getEmail());
-        verify(repository).save(user);
+        UserDTO result = service.insert(dto);
+
+        assertNotNull(result.getId());
+        assertEquals("Fulano", result.getNome());
+        assertEquals("fulano@email.com", result.getEmail());
+        verify(repository).save(any(User.class));
+        verify(repository).existsByEmail(result.getEmail());
     }
 
     @Test
-    void insert_DeveLancarExceptionQuandoEmailJaExiste() {
-        when(repository.existsByEmail(user.getEmail())).thenReturn(true);
+    void insert_emailAlreadyExists() {
+        UserDTO dto = buildDTO(1L, "Fulano", "email@jaexiste.com");
+
+        when(repository.save(any(User.class))).thenAnswer(invocation -> {
+            User u = invocation.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+        when(repository.existsByEmail(anyString()))
+                .thenReturn(true);
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> service.insert(user)
+                () -> service.insert(dto)
         );
 
         assertTrue(ex.getMessage().contains("E-mail já cadastrado"));
-        verify(repository).existsByEmail(user.getEmail());
-        verify(repository, never()).save(any());
+        verify(repository).existsByEmail(anyString());
     }
 
     // FIND ALL
-
     @Test
-    void findAll_DeveRetornarListaDeUsuarios() {
-        when(repository.findAll()).thenReturn(Arrays.asList(user));
+    void findAll_sucess() {
+        User u1 = buildUser(1L, "Fulano", "f1@email.com");
+        User u2 = buildUser(2L, "Ciclano", "f2@email.com");
 
-        List<User> lista = service.findAll();
+        when(repository.findAll()).thenReturn(Arrays.asList(u1, u2));
 
-        assertNotNull(lista);
-        assertEquals(1, lista.size());
+        List<UserDTO> result = service.findAll();
+
+        assertEquals(2, result.size());
+        assertEquals("Fulano", result.get(0).getNome());
+        assertEquals("Ciclano", result.get(1).getNome());
         verify(repository).findAll();
     }
 
     // FIND BY ID
-
     @Test
-    void findById_DeveRetornarUsuarioQuandoExiste() {
-        when(repository.findById(1L)).thenReturn(Optional.of(user));
+    void findById_sucess() {
+        User u = buildUser(1L, "Fulano", "fulano@email.com");
+        when(repository.findById(1L)).thenReturn(Optional.of(u));
 
-        User resultado = service.findById(1L);
+        UserDTO result = service.findById(1L);
 
-        assertNotNull(resultado);
-        assertEquals(1L, resultado.getId());
+        assertEquals(1L, result.getId());
+        assertEquals("Fulano", result.getNome());
         verify(repository).findById(1L);
     }
 
     @Test
-    void findById_DeveLancarExceptionQuandoNaoExiste() {
+    void findById_idNotFound() {
         when(repository.findById(1L)).thenReturn(Optional.empty());
 
         IllegalArgumentException ex = assertThrows(
@@ -110,55 +141,53 @@ class UserServiceTest {
     // UPDATE
 
     @Test
-    void update_DeveAtualizarQuandoUsuarioExisteEEmailNaoConflita() {
-        User atualizado = new User();
-        atualizado.setNome("Nome Atualizado");
-        atualizado.setEmail("joao@example.com");
-        atualizado.setDataNascimento(LocalDate.of(1991, 2, 2));
+    void update_sucess() {
+        UserDTO dto = buildDTO(1L, "Novo Nome", "novo@email.com");
+        User existing = buildUser(1L, "Antigo Nome", "antigo@email.com");
 
-        when(repository.getReferenceById(1L)).thenReturn(user);
-        when(repository.save(any(User.class))).thenReturn(user);
+        when(repository.getReferenceById(1L)).thenReturn(existing);
+        when(repository.existsByEmail("novo@email.com"))
+                .thenReturn(false);
+        when(repository.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        User resultado = service.update(1L, atualizado);
+        UserDTO result = service.update(1L, dto);
 
-        assertNotNull(resultado);
-        assertEquals("Nome Atualizado", user.getNome());
+        assertEquals(1L, result.getId());
+        assertEquals("Novo Nome", result.getNome());
+        assertEquals("novo@email.com", result.getEmail());
         verify(repository).getReferenceById(1L);
-        verify(repository, never()).existsByEmail(anyString());
-        verify(repository).save(user);
+        verify(repository).save(existing);
     }
 
     @Test
-    void update_DeveLancarExceptionQuandoEmailJaExisteEmOutroUsuario() {
-        User atualizado = new User();
-        atualizado.setNome("Outro Nome");
-        atualizado.setEmail("novoemail@example.com");
+    void update_emailAlreadyExists() {
+        UserDTO dto = buildDTO(2L, "Fulano", "duplicado@email.com");
+        User existing = buildUser(1L, "Fulano", "antigo@email.com");
 
-        when(repository.getReferenceById(1L)).thenReturn(user);
-        when(repository.existsByEmail(atualizado.getEmail())).thenReturn(true);
+        when(repository.getReferenceById(1L)).thenReturn(existing);
+        when(repository.existsByEmail("duplicado@email.com"))
+                .thenReturn(true);
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
-                () -> service.update(1L, atualizado)
+                () -> service.update(1L, dto)
         );
 
         assertTrue(ex.getMessage().contains("E-mail já cadastrado"));
-        verify(repository).getReferenceById(1L);
-        verify(repository).existsByEmail(atualizado.getEmail());
-        verify(repository, never()).save(any());
+        verify(repository).existsByEmail(dto.getEmail());
     }
 
     @Test
-    void update_DeveLancarExceptionQuandoUsuarioNaoExiste() {
-        User atualizado = new User();
-        atualizado.setNome("Teste");
-        atualizado.setEmail("teste@example.com");
+    void update_idNotFound() {
+        UserDTO dto = buildDTO(2L, "Fulano", "email@email.com");
 
-        when(repository.getReferenceById(1L)).thenThrow(new EntityNotFoundException());
+        when(repository.getReferenceById(1L))
+                .thenThrow(new EntityNotFoundException());
 
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
-                () -> service.update(1L, atualizado)
+        EntityNotFoundException ex = assertThrows(
+                EntityNotFoundException.class,
+                () -> service.update(1L, dto)
         );
 
         assertTrue(ex.getMessage().contains("Usuário não encontrado"));
@@ -168,8 +197,9 @@ class UserServiceTest {
     // DELETE
 
     @Test
-    void delete_DeveExcluirQuandoUsuarioExiste() {
+    void delete_sucess() {
         when(repository.existsById(1L)).thenReturn(true);
+        doNothing().when(repository).deleteById(1L);
 
         service.delete(1L);
 
@@ -178,7 +208,7 @@ class UserServiceTest {
     }
 
     @Test
-    void delete_DeveLancarExceptionQuandoUsuarioNaoExiste() {
+    void delete_idNotFound() {
         when(repository.existsById(1L)).thenReturn(false);
 
         IllegalArgumentException ex = assertThrows(
@@ -192,7 +222,7 @@ class UserServiceTest {
     }
 
     @Test
-    void delete_DeveLancarExceptionQuandoHaViolacaoDeIntegridade() {
+    void delete_referenceIntegrityFail() {
         when(repository.existsById(1L)).thenReturn(true);
         doThrow(new DataIntegrityViolationException("erro"))
                 .when(repository).deleteById(1L);

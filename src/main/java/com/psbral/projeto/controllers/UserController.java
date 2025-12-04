@@ -1,8 +1,7 @@
 package com.psbral.projeto.controllers;
 
 import com.psbral.projeto.dto.UserDTO;
-import com.psbral.projeto.models.User;
-import com.psbral.projeto.services.UserService;
+import com.psbral.projeto.repository.ServiceRepository;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -21,7 +20,7 @@ import java.util.List;
 public class UserController {
 
     @Autowired
-    private final UserService service;
+    private final ServiceRepository service;
 
     // CREATE
     // POST /users

@@ -2,6 +2,7 @@ package com.psbral.projeto.services;
 
 import com.psbral.projeto.dto.UserDTO;
 import com.psbral.projeto.models.User;
+import com.psbral.projeto.repository.ServiceRepository;
 import com.psbral.projeto.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
@@ -15,12 +16,9 @@ import java.util.stream.Collectors;
 
 @AllArgsConstructor
 @Service
-public class UserService {
+public class UserService implements ServiceRepository {
 
-    @Autowired
     private final UserRepository repository;
-
-    @Autowired
     private final ModelMapper modelMapper;
 
     // CREATE
