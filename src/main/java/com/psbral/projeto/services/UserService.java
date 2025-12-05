@@ -1,75 +1,96 @@
 package com.psbral.projeto.services;
 
+import com.psbral.projeto.dto.UserDTO;
 import com.psbral.projeto.models.User;
+import com.psbral.projeto.repository.ServiceRepository;
 import com.psbral.projeto.repository.UserRepository;
-
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
+import org.modelmapper.ModelMapper;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
+import java.util.stream.Collectors;
 
+@AllArgsConstructor
 @Service
-public class UserService {
+public class UserService implements ServiceRepository {
 
-    @Autowired
-    private UserRepository repository;
+    private final UserRepository repository;
+    private final ModelMapper modelMapper;
 
     // CREATE
+    @Override
     @Transactional
-    public User insert(User user) {
+    public UserDTO insert(UserDTO dto) {
 
-        if (repository.existsByEmail(user.getEmail())) {
-            throw new IllegalArgumentException("E-mail já cadastrado: " + user.getEmail());
+        if (repository.existsByEmail(dto.email())) {
+            throw new IllegalArgumentException("E-mail já cadastrado: " + dto.email());
         }
 
-        return repository.save(user);
+        User entity = modelMapper.map(dto, User.class);
+        entity.onCreate();
+        User finalEntity = repository.save(entity);
+
+        return modelMapper.map(finalEntity, UserDTO.class);
     }
 
+
+    // ALL
+    @Override
     @Transactional(readOnly = true)
-    public List<User> findAll() {
-        return repository.findAll();
+    public List<UserDTO> findAll() {
+        return repository.findAll().stream()
+                .map(i -> modelMapper.map(i, UserDTO.class))
+                .collect(Collectors.toList());
     }
 
+    // BY ID
+    @Override
     @Transactional(readOnly = true)
-    public User findById(Long id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado - id: " + id));
+    public UserDTO findById(String id) {
+        User entity = repository.findById(id).orElseThrow(
+                () -> new IllegalArgumentException("Usuário não encontrado - id: " + id)
+        );
+
+        return modelMapper.map(entity, UserDTO.class);
     }
 
-    private void copyToUser(User source, User target) {
-        target.setNome(source.getNome());
-        target.setEmail(source.getEmail());
-        target.setDataNascimento(source.getDataNascimento());
+    // UPDATE
+    // COPY
+    private void copyToUser(UserDTO source, User target) {
+        target.setName(source.name());
+        target.setEmail(source.email());
+        target.setBirthDate(source.birthDate());
     }
 
+    @Override
     @Transactional
-    public User update(Long id, User entity) {
+    public UserDTO update(String id, UserDTO entity) {
         try {
 
             User user = repository.getReferenceById(id);
 
-            if (!user.getEmail().equals(entity.getEmail())
-                    && repository.existsByEmail(entity.getEmail())) {
+            if (!user.getEmail().equals(entity.email())
+                    && repository.existsByEmail(entity.email())) {
 
-                throw new IllegalArgumentException("E-mail já cadastrado: " + entity.getEmail());
+                throw new IllegalArgumentException("E-mail já cadastrado: " + entity.email());
             }
 
             copyToUser(entity, user);
-
             user = repository.save(user);
-            return user;
+            return modelMapper.map(user, UserDTO.class);
 
         } catch (EntityNotFoundException e) {
-            throw new IllegalArgumentException("Usuário não encontrado - id: " + id);
+            throw new EntityNotFoundException("Usuário não encontrado - id: " + id);
         }
     }
 
     // DELETE
+    @Override
     @Transactional
-    public void delete(Long id) {
+    public void delete(String id) {
 
         if (!repository.existsById(id)) {
             throw new IllegalArgumentException("Usuário não encontrado - id: " + id);
