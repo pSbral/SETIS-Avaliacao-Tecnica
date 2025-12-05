@@ -23,5 +23,4 @@ public record UserDTO(
 
         LocalDate createdAt,
         LocalDate lastUpdate
-
 ) { }

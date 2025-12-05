@@ -23,16 +23,18 @@ public class UserService implements ServiceRepository {
     // CREATE
     @Transactional
     public UserDTO insert(UserDTO dto) {
+
+        if (repository.existsByEmail(dto.email())) {
+            throw new IllegalArgumentException("E-mail já cadastrado: " + dto.email());
+        }
+
         User entity = modelMapper.map(dto, User.class);
         entity.aoCriar();
         User finalEntity = repository.save(entity);
 
-        if (repository.existsByEmail(finalEntity.getEmail())) {
-            throw new IllegalArgumentException("E-mail já cadastrado: " + finalEntity.getEmail());
-        }
-
         return modelMapper.map(finalEntity, UserDTO.class);
     }
+
 
     // ALL
     @Transactional(readOnly = true)
