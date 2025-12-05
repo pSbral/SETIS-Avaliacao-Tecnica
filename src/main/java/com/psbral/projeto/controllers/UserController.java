@@ -48,7 +48,7 @@ public class UserController {
     // READ – FIND BY ID
     // GET /users/{id}
     @GetMapping("/{id}")
-    public ResponseEntity<UserDTO> findById(@PathVariable @NotNull Long id) {
+    public ResponseEntity<UserDTO> findById(@PathVariable @NotNull String id) {
         UserDTO dto = service.findById(id);
         return ResponseEntity.ok(dto);
     }
@@ -56,7 +56,7 @@ public class UserController {
     // UPDATE
     // PUT /users/{id}
     @PutMapping("/{id}")
-    public UserDTO update(@PathVariable Long id,
+    public UserDTO update(@PathVariable String id,
                           @Valid @RequestBody UserDTO user) {
         return service.update(id, user);
     }
@@ -64,7 +64,7 @@ public class UserController {
     // DELETE
     // DELETE /users/{id}
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable @NotNull Long id) {
+    public void delete(@PathVariable @NotNull String id) {
         service.delete(id);
     }
 }

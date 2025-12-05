@@ -8,8 +8,8 @@ public interface ServiceRepository {
 
     UserDTO insert(UserDTO dto);
     List<UserDTO> findAll();
-    UserDTO findById(Long id);
-    UserDTO update(Long id, UserDTO entity);
-    void delete(Long id);
+    UserDTO findById(String id);
+    UserDTO update(String id, UserDTO entity);
+    void delete(String id);
 
 }

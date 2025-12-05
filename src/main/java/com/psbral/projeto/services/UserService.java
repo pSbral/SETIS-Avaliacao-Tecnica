@@ -29,7 +29,7 @@ public class UserService implements ServiceRepository {
         }
 
         User entity = modelMapper.map(dto, User.class);
-        entity.aoCriar();
+        entity.onCreate();
         User finalEntity = repository.save(entity);
 
         return modelMapper.map(finalEntity, UserDTO.class);
@@ -46,7 +46,7 @@ public class UserService implements ServiceRepository {
 
     // BY ID
     @Transactional(readOnly = true)
-    public UserDTO findById(Long id) {
+    public UserDTO findById(String id) {
         User entity = repository.findById(id).orElseThrow(
                 () -> new IllegalArgumentException("Usuário não encontrado - id: " + id)
         );
@@ -57,13 +57,13 @@ public class UserService implements ServiceRepository {
     // UPDATE
     // COPY
     private void copyToUser(UserDTO source, User target) {
-        target.setNome(source.name());
+        target.setName(source.name());
         target.setEmail(source.email());
-        target.setDataNascimento(source.birthDate());
+        target.setBirthDate(source.birthDate());
     }
 
     @Transactional
-    public UserDTO update(Long id, UserDTO entity) {
+    public UserDTO update(String id, UserDTO entity) {
         try {
 
             User user = repository.getReferenceById(id);
@@ -85,7 +85,7 @@ public class UserService implements ServiceRepository {
 
     // DELETE
     @Transactional
-    public void delete(Long id) {
+    public void delete(String id) {
 
         if (!repository.existsById(id)) {
             throw new IllegalArgumentException("Usuário não encontrado - id: " + id);

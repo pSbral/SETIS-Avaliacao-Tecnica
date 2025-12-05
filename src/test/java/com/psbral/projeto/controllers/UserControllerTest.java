@@ -30,7 +30,7 @@ class UserControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private UserDTO buildDTO(long id, String name, String email) {
+    private UserDTO buildDTO(String id, String name, String email) {
         return new UserDTO(
                 id,
                 name,
@@ -43,18 +43,18 @@ class UserControllerTest {
 
     @Test
     void insert_shouldReturnCreated_whenValidRequest() throws Exception {
-        UserDTO saved = buildDTO(1L, "Fulano", "fulano@email.com");
+        UserDTO saved = buildDTO("01H00000000000000000000001", "Fulano", "fulano@email.com");
         when(service.insert(any(UserDTO.class))).thenReturn(saved);
 
-        UserDTO requestBody = buildDTO(0L, "Fulano", "fulano@email.com");
+        UserDTO requestBody = buildDTO("00H00000000000000000000001", "Fulano", "fulano@email.com");
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(requestBody)))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location",
-                        containsString("/users/1")))
-                .andExpect(jsonPath("$.id").value(1))
+                        containsString("/users/01H00000000000000000000001")))
+                .andExpect(jsonPath("$.id").value("01H00000000000000000000001"))
                 .andExpect(jsonPath("$.name").value("Fulano"))
                 .andExpect(jsonPath("$.email").value("fulano@email.com"));
     }
@@ -64,7 +64,7 @@ class UserControllerTest {
         when(service.insert(any(UserDTO.class)))
                 .thenThrow(new IllegalArgumentException("E-mail already exists"));
 
-        UserDTO requestBody = buildDTO(0L, "Fulano", "fulano@email.com");
+        UserDTO requestBody = buildDTO("00H00000000000000000000001", "Fulano", "fulano@email.com");
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -103,7 +103,7 @@ class UserControllerTest {
         when(service.insert(any(UserDTO.class)))
                 .thenThrow(new RuntimeException("Database down"));
 
-        UserDTO requestBody = buildDTO(0L, "Fulano", "fulano@email.com");
+        UserDTO requestBody = buildDTO("00H00000000000000000000001", "Fulano", "fulano@email.com");
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)

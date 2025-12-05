@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 public record UserDTO(
-        long id,
+        String id,
 
         @NotBlank(message = "Campo Obrigatório")
         @Size(min = 4, max = 50, message = "O nome deve ter entre 4 e 50 caracteres")
