@@ -21,6 +21,7 @@ public class UserService implements ServiceRepository {
     private final ModelMapper modelMapper;
 
     // CREATE
+    @Override
     @Transactional
     public UserDTO insert(UserDTO dto) {
 
@@ -37,6 +38,7 @@ public class UserService implements ServiceRepository {
 
 
     // ALL
+    @Override
     @Transactional(readOnly = true)
     public List<UserDTO> findAll() {
         return repository.findAll().stream()
@@ -45,6 +47,7 @@ public class UserService implements ServiceRepository {
     }
 
     // BY ID
+    @Override
     @Transactional(readOnly = true)
     public UserDTO findById(String id) {
         User entity = repository.findById(id).orElseThrow(
@@ -62,6 +65,7 @@ public class UserService implements ServiceRepository {
         target.setBirthDate(source.birthDate());
     }
 
+    @Override
     @Transactional
     public UserDTO update(String id, UserDTO entity) {
         try {
@@ -84,6 +88,7 @@ public class UserService implements ServiceRepository {
     }
 
     // DELETE
+    @Override
     @Transactional
     public void delete(String id) {
 
