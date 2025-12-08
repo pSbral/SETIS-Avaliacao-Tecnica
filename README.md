@@ -1,212 +1,136 @@
-Segue um README atualizado, refletindo o estado atual do projeto. 
 
----
+# SETIS – API de Usuários (versão revisada)
 
-# SETIS – Avaliação Técnica
-
-API REST para Gerenciamento de Usuários
-
-Projeto desenvolvido como parte da Avaliação Técnica da SETIS.
-Consiste em uma **API REST** construída com Java + Spring Boot, utilizando **PostgreSQL em Docker**, **Flyway** para migrações e **ULID** como identificador de usuário.
-
-A aplicação expõe operações CRUD para usuários, garantindo:
-
-* Validação de campos via Jakarta Bean Validation
-* E-mail único na base
-* IDs string gerados como ULID
-* Datas gerenciadas automaticamente na entidade
-* Regras transacionais no `Service` (@Transactional readOnly / write)
-* Tratamento centralizado de erros com payload padronizado
-* Documentação Swagger (Springdoc OpenAPI)
-* Testes unitários com JUnit 5 + Mockito
+API REST para gerenciamento de usuários, desenvolvida em **Java + Spring Boot**, utilizando **PostgreSQL** e **Docker**.  
 
 ---
 
 ## 1. Tecnologias Utilizadas
 
-* **Java 17**
-* **Spring Boot 3.5.x**
-* **Spring Web (REST)**
-* **Spring Data JPA (Hibernate)**
-* **PostgreSQL (via Docker)**
-* **Flyway (migrações de banco)**
-* **Jakarta Bean Validation**
-* **ModelMapper**
-* **ULID Creator** (IDs string)
-* **Lombok**
-* **Springdoc OpenAPI (Swagger UI)**
-* **JUnit 5 + Mockito**
+- **Java 17**
+- **Spring Boot 3.5.x**   
+- Spring Web (REST)
+- Spring Data JPA (Hibernate)
+- Bean Validation (Jakarta Validation)
+- Lombok
+- PostgreSQL
+- H2 (para testes)   
+- **Flyway** (migrações de banco)
+- **ModelMapper** (mapeamento entre entidades e DTOs)
+- **ULID Creator** (IDs string únicas)
+- **ArchUnit** (testes de arquitetura)
+- Springdoc OpenAPI (Swagger UI)   
+- JUnit 5 + Mockito
 
 ---
 
 ## 2. Arquitetura do Projeto
 
+Pacotes principais:
+
 ```text
-src/main/java/com/psbral/projeto/
+src/main/java/com/psbral/projeto
     ├── config/
     │     └── ConfigModelMapper.java
     ├── controllers/
     │     └── UserController.java
     ├── dto/
-    │     └── UserDTO.java
+    │     └── UserDTO.java      // Request e Response
     ├── models/
     │     └── User.java
     ├── repository/
-    │     ├── UserRepository.java
-    │     └── ServiceRepository.java
+    │     └── UserRepository.java
     ├── services/
+    │     ├── ServiceRepository.java
     │     └── UserService.java
-    ├── services/exceptions/
-    │     └── ApiExceptionHandler.java
-    ├── services/exceptions/models/
-    │     └── ApiError.java
-    └── SetisAvaliacaoTecnicaApplication.java
+    └── services/exceptions/
+          ├── ApiExceptionHandler.java
+          └── models/ApiError.java
 
-src/main/resources/
-    ├── application.properties
-    └── db/migration/
-        └── (scripts Flyway para criar/atualizar o schema)
+src/test/java/com/psbral/projeto
+    ├── services/
+    │     └── UserServiceTest.java
+    ├── controllers/
+    │     └── UserControllerTest.java
+    └── ArchitectureTest.java
+````
 
-src/test/java/com/psbral/projeto/services/
-    └── UserServiceTest.java
-```
+Padrões adotados:
 
----
-
-## 3. Modelo de Usuário (Entidade `User`)
-
-| Campo      | Tipo          | Regra / Observação                                                      |
-| ---------- | ------------- | ----------------------------------------------------------------------- |
-| id         | String (ULID) | 26 caracteres, gerado automaticamente em `@PrePersist`, não atualizável |
-| name       | String        | Obrigatório, máx. 50 caracteres                                         |
-| email      | String        | Obrigatório, formato válido, máx. 254 caracteres, **único** na base     |
-| birthDate  | LocalDate     | Obrigatória, não pode ser futura                                        |
-| createdAt  | LocalDateTime | Preenchido em `@PrePersist`                                             |
-| lastUpdate | LocalDateTime | Preenchido em `@PrePersist` e atualizado em `@PreUpdate`                |
+* Controller → Service → Repository → Model
+* Controller **não acessa** diretamente o Repository (validado em `ArchitectureTest` com ArchUnit).
+* ModelMapper para conversão entre `User` e `UserDTO`.
 
 ---
 
-## 4. DTO e Validações
+## 3. Modelo de Usuário
 
-O tráfego da API (request/response) usa o `UserDTO`:
+### Entidade `User`
 
-```java
-public record UserDTO(
-        String id,
-        @NotBlank @Size(min = 4, max = 50) String name,
-        @NotBlank @Email @Size(max = 254) String email,
-        @NotNull @PastOrPresent LocalDate birthDate,
-        LocalDate createdAt,
-        LocalDate lastUpdate
-) {}
-```
+Campos principais:
 
-Nos controllers, os endpoints que recebem o DTO usam `@Valid` para acionar as validações:
+| Campo      | Tipo          | Regra / Observação                        |
+| ---------- | ------------- | ----------------------------------------- |
+| id         | String        | ULID gerado automaticamente (@PrePersist) |
+| name       | String        | 4 a 50 caracteres                         |
+| email      | String        | Único, formato válido                     |
+| birthDate  | LocalDate     | Não pode ser futura                       |
+| createdAt  | LocalDateTime | Definido automaticamente na criação       |
+| lastUpdate | LocalDateTime | Atualizado automaticamente                |
 
-```java
-@PostMapping
-public ResponseEntity<UserDTO> insert(@RequestBody @Valid UserDTO dto) { ... }
+IDs são gerados com `UlidCreator` no `@PrePersist`.
 
-@PutMapping("/{id}")
-public UserDTO update(@PathVariable String id,
-                      @Valid @RequestBody UserDTO user) { ... }
-```
+### DTOs `UserDTO`
 
----
+`UserDTO` é um record que agrupa dois subrecords:
 
-## 5. Regras de Negócio no Service
+* `UserDTO.Request`
 
-Classe: `UserService`
+    * Campos de entrada (request body)
+    * Possui validações de Bean Validation (`@NotBlank`, `@Size`, `@Email`, `@PastOrPresent`, etc.)
+    * Pode incluir campos internos quando necessário (ex.: `id`, `createdAt`, `lastUpdate`) para cenários de atualização.
 
-* **E-mail único no insert**
+* `UserDTO.Response`
 
-  ```java
-  @Transactional
-  public UserDTO insert(UserDTO dto) {
-      if (repository.existsByEmail(dto.email())) {
-          throw new IllegalArgumentException("E-mail já cadastrado: " + dto.email());
-      }
-      ...
-  }
-  ```
+    * **Somente campos que podem ser expostos ao cliente:**
 
-* **E-mail único no update (considerando alteração)**
-
-  ```java
-  @Transactional
-  public UserDTO update(String id, UserDTO dto) {
-      User user = repository.getReferenceById(id);
-
-      if (!user.getEmail().equals(dto.email())
-              && repository.existsByEmail(dto.email())) {
-          throw new IllegalArgumentException("E-mail já cadastrado: " + dto.email());
-      }
-      ...
-  }
-  ```
-
-* **Transações**
-
-  * Métodos de **leitura**:
-
-    ```java
-    @Transactional(readOnly = true)
-    public List<UserDTO> findAll() { ... }
-
-    @Transactional(readOnly = true)
-    public UserDTO findById(String id) { ... }
-    ```
-
-  * Métodos de **escrita**:
-
-    ```java
-    @Transactional
-    public UserDTO insert(UserDTO dto) { ... }
-
-    @Transactional
-    public UserDTO update(String id, UserDTO dto) { ... }
-
-    @Transactional
-    public void delete(String id) { ... }
-    ```
-
-* **Delete com validação de existência + integridade referencial**
-
-  ```java
-  @Transactional
-  public void delete(String id) {
-      if (!repository.existsById(id)) {
-          throw new IllegalArgumentException("Usuário não encontrado - id: " + id);
-      }
-      try {
-          repository.deleteById(id);
-      } catch (DataIntegrityViolationException e) {
-          throw new IllegalArgumentException("Falha de integridade referencial - id: " + id);
-      }
-  }
-  ```
+        * `name`
+        * `email`
+        * `birthDate`
+    * Não expõe `id`, `createdAt`, `lastUpdate` nem outros detalhes internos.
 
 ---
 
-## 6. Banco de Dados via Docker
+## 4. Banco de Dados e Configuração
 
-Arquivo `docker-compose.yml` na raiz:
+### 4.1 `application.properties`
 
-```yaml
-services:
-  postgres:
-    image: postgres:14
-    container_name: postgres-setis
-    restart: always
-    environment:
-      POSTGRES_USER: setis
-      POSTGRES_PASSWORD: setis123
-      POSTGRES_DB: usuarios
-    ports:
-      - "5432:5432"
+Banco PostgreSQL local:
+
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/usuarios
+spring.datasource.username=setis
+spring.datasource.password=setis123
+
+spring.jpa.hibernate.ddl-auto=none
+spring.jpa.show-sql=true
 ```
 
-### Subindo o banco
+Observações:
+
+* `ddl-auto=none`: o schema é controlado via **Flyway** (migrações).
+* As migrações devem estar em `src/main/resources/db/migration` seguindo o padrão `V1__...sql`, `V2__...sql`, etc.
+
+---
+
+## 5. Execução com Docker e Docker Compose
+
+O projeto inclui:
+
+* `Dockerfile` para construir a imagem da aplicação
+* `docker-compose.yml` para subir **PostgreSQL + aplicação** juntos
+
+### 5.1 Subir tudo com Docker Compose
 
 Na raiz do projeto:
 
@@ -214,49 +138,18 @@ Na raiz do projeto:
 docker compose up -d
 ```
 
-Verificar se o container está rodando:
+* Serviço `postgres` sobe o banco com:
 
-```bash
-docker ps
-```
+    * DB: `usuarios`
+    * Usuário: `setis`
+    * Senha: `setis123`
+* Serviço `app`:
 
----
+    * Builda o jar via Maven
+    * Sobe a aplicação na porta `8080`
+    * Conecta no serviço `postgres` via `jdbc:postgresql://postgres:5432/usuarios`
 
-## 7. Configuração da Aplicação
-
-`src/main/resources/application.properties`:
-
-```properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/usuarios
-spring.datasource.username=setis
-spring.datasource.password=setis123
-
-# Schema gerenciado pelo Flyway
-spring.jpa.hibernate.ddl-auto=none
-spring.jpa.show-sql=true
-```
-
-O Flyway usa os scripts em `src/main/resources/db/migration` para criar/atualizar o schema.
-
----
-
-## 8. Como Rodar a Aplicação
-
-### Via IDE (IntelliJ / Eclipse)
-
-Executar a classe:
-
-```text
-SetisAvaliacaoTecnicaApplication
-```
-
-### Via terminal
-
-```bash
-mvn spring-boot:run
-```
-
-A API ficará disponível em:
+A API ficará acessível em:
 
 ```text
 http://localhost:8080
@@ -264,85 +157,152 @@ http://localhost:8080
 
 ---
 
-## 9. Endpoints
+## 6. Execução Local (sem Docker)
 
-Base path: `/users`
+Pré-requisitos:
 
-### 9.1 Criar usuário
+* Java 17+
+* Maven
+* PostgreSQL rodando localmente com:
+
+    * DB: `usuarios`
+    * USER: `setis`
+    * PASSWORD: `setis123`
+
+Passos:
+
+```bash
+# Rodar somente a aplicação
+mvn spring-boot:run
+```
+
+Ou:
+
+```bash
+# Gerar o jar
+mvn clean package
+
+# Executar o jar
+java -jar target/SETIS-Avaliacao-Tecnica-0.0.1-SNAPSHOT.jar
+```
+
+---
+
+## 7. Endpoints
+
+Base path (exemplo): `/users`
+
+### 7.1 Criar Usuário
 
 `POST /users`
 
-Request body:
+Request body (UserDTO.Request):
 
 ```json
 {
-  "name": "João Silva",
+  "name": "Joao Silva",
   "email": "joao@example.com",
   "birthDate": "1990-05-10"
 }
 ```
 
-Resposta `201 Created`:
+Response (UserDTO.Response):
 
 ```json
 {
-  "id": "01JH6F61X5M7V3QG0K9R9W4B9C",
-  "name": "João Silva",
+  "name": "Joao Silva",
   "email": "joao@example.com",
-  "birthDate": "1990-05-10",
-  "createdAt": "2025-12-05T12:34:56",
-  "lastUpdate": "2025-12-05T12:34:56"
+  "birthDate": "1990-05-10"
 }
 ```
 
-### 9.2 Listar usuários
-
-`GET /users`
-
-Resposta `200 OK` com lista de `UserDTO`.
-
-### 9.3 Buscar usuário por ID
-
-`GET /users/{id}`
-
-Retorna `UserDTO` correspondente ou erro padronizado se não encontrar.
-
-### 9.4 Atualizar usuário
-
-`PUT /users/{id}`
-
-Request body igual ao POST (sem necessidade de enviar `id`, `createdAt` ou `lastUpdate`).
-
-### 9.5 Deletar usuário
-
-`DELETE /users/{id}`
-
-* `200`/`204` em caso de sucesso (dependendo da configuração do controller).
-* Erro `400` se o usuário não existir ou em caso de violação de integridade.
+Retorna `201 Created` com header `Location` apontando para `/users/{id}`.
 
 ---
 
-## 10. Tratamento de Erros
+### 7.2 Listar Usuários
 
-O tratamento é centralizado em `ApiExceptionHandler`, que devolve sempre um objeto `ApiError`:
+`GET /users`
 
-```java
-public record ApiError(
-    Instant timestamp,
-    int value,
-    String message,
-    String error,
-    String path
-) {}
+Response:
+
+```json
+[
+  {
+    "name": "Joao Silva",
+    "email": "joao@example.com",
+    "birthDate": "1990-05-10"
+  },
+  {
+    "name": "Maria Souza",
+    "email": "maria@example.com",
+    "birthDate": "1988-11-20"
+  }
+]
 ```
 
-### Exemplos
+---
 
-**E-mail duplicado**
+### 7.3 Buscar por ID
+
+`GET /users/{id}`
+
+Response (200):
 
 ```json
 {
-  "timestamp": "2025-12-05T12:34:56.789Z",
+  "name": "Joao Silva",
+  "email": "joao@example.com",
+  "birthDate": "1990-05-10"
+}
+```
+
+Se não existir, retorna erro padrão `ApiError` com `404 Not Found`.
+
+---
+
+### 7.4 Atualizar Usuário
+
+`PUT /users/{id}`
+
+Request:
+
+```json
+{
+  "name": "Joao da Silva",
+  "email": "joao.silva@example.com",
+  "birthDate": "1990-05-10"
+}
+```
+
+Response:
+
+```json
+{
+  "name": "Joao da Silva",
+  "email": "joao.silva@example.com",
+  "birthDate": "1990-05-10"
+}
+```
+
+---
+
+### 7.5 Deletar Usuário
+
+`DELETE /users/{id}`
+
+* Sucesso: `204 No Content`
+* Se não existir: erro `404` com `ApiError`.
+
+---
+
+## 8. Padrão de Erros (`ApiError`)
+
+Todos os erros tratados pelo `ApiExceptionHandler` retornam um JSON com o seguinte formato (`ApiError`):
+
+```json
+{
+  "timestamp": "2025-12-08T12:34:56.789Z",
   "value": 400,
   "message": "E-mail já cadastrado: joao@example.com",
   "error": "Bad Request",
@@ -350,64 +310,74 @@ public record ApiError(
 }
 ```
 
-**Usuário não encontrado**
+Erros cobertos:
 
-```json
-{
-  "timestamp": "2025-12-05T12:34:56.789Z",
-  "value": 400,
-  "message": "Usuário não encontrado - id: 01JH6F61X5M7V3QG0K9R9W4B9C",
-  "error": "Bad Request",
-  "path": "/users/01JH6F61X5M7V3QG0K9R9W4B9C"
-}
-```
+* `MethodArgumentNotValidException`
 
-**Erro de validação (`@Valid`)**
+    * Campos inválidos (Bean Validation) → 400
+* `EntityNotFoundException`
 
-```json
-{
-  "timestamp": "2025-12-05T12:34:56.789Z",
-  "value": 400,
-  "message": "name: O nome deve ter entre 4 e 50 caracteres",
-  "error": "Validation error",
-  "path": "/users"
-}
-```
+    * Usuário não encontrado → 404
+* `IllegalArgumentException`
+
+    * Negócio (e-mail duplicado, integridade referencial) → 400
+* `Exception` (fallback)
+
+    * Erro inesperado → 500 “Unexpected error”
 
 ---
 
-## 11. Documentação Swagger
+## 9. Regras de Negócio
 
-Swagger UI disponível em:
+* **E-mail único**:
+
+    * Ao criar ou atualizar, o service verifica `existsByEmail` no `UserRepository`.
+    * Em caso de duplicidade, lança `IllegalArgumentException` com mensagem específica.
+
+* **Data de nascimento**:
+
+    * `@PastOrPresent`: não permite datas futuras.
+
+* **IDs ULID**:
+
+    * Gerados automaticamente no `@PrePersist` se `id == null`.
+
+---
+
+## 10. Documentação Swagger
+
+Disponível em:
 
 ```text
 http://localhost:8080/swagger-ui/index.html
 ```
 
-JSON OpenAPI em:
+JSON OpenAPI:
 
 ```text
 http://localhost:8080/v3/api-docs
 ```
 
+(springdoc configurado via `springdoc-openapi-starter-webmvc-ui`).
+
 ---
 
-## 12. Testes Unitários
+## 11. Testes
 
-Classe principal de testes: `UserServiceTest`.
+* `UserServiceTest`
 
-Cobertura (resumo):
+    * Inserção com e sem e-mail duplicado
+    * Atualização com verificação de conflito
+    * Busca por ID inexistente
+    * Remoção com falha de integridade
+    * Remoção de usuário existente
 
-* Inserção com e-mail novo
-* Inserção com e-mail duplicado
-* Atualização com verificação de e-mail duplicado
-* Busca por ID inexistente
-* Remoção de usuário existente
-* Remoção com falha de integridade referencial
-* Comportamento dos mocks do repositório e regras do `UserService`
+* `UserControllerTest`
 
-Rodar testes:
+    * Valida o comportamento da camada REST (ex.: status, payload, validações).
 
-```bash
-mvn test
-```
+* `ArchitectureTest`
+
+    * Garante que controllers não acessam diretamente o package `repository`.
+    * Mantém a separação entre camadas e boas práticas de arquitetura.
+
