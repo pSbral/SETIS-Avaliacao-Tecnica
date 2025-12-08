@@ -13,7 +13,6 @@ import lombok.*;
 @Setter
 
 
-//SE TIVER DANDO ERRO DE DB OU SLA PODE SER ALG MERDA Q EU MUDEI AQ (NOME DA uk)
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "tb_usuario", uniqueConstraints = {
@@ -42,7 +41,7 @@ public class User {
     @PrePersist
     public void onCreate() {
         if (this.id == null) {
-            this.id = UlidCreator.getUlid().toString(); // 26 caracteres
+            this.id = UlidCreator.getUlid().toString();
         }
         this.createdAt = LocalDateTime.now();
         this.lastUpdate = LocalDateTime.now();
@@ -51,17 +50,5 @@ public class User {
     @PreUpdate
     public void onUpdate() {
         this.createdAt = LocalDateTime.now();
-    }
-
-    @Override
-    public String toString() {
-        return "User{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", email='" + email + '\'' +
-                ", birthDate=" + birthDate +
-                ", createdAt=" + createdAt +
-                ", lastUpdate=" + lastUpdate +
-                '}';
     }
 }

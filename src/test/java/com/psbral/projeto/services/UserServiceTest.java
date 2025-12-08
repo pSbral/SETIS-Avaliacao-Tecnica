@@ -13,8 +13,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,55 +38,41 @@ class UserServiceTest {
     void setUp() {
         service = new UserService(repository, modelMapper);
 
-        // Mapeamento DTO -> Entity
-        lenient().when(modelMapper.map(any(UserDTO.class), eq(User.class)))
+        lenient().when(modelMapper.map(any(UserDTO.Request.class), eq(User.class)))
                 .thenAnswer(invocation -> {
-                    UserDTO dto = invocation.getArgument(0);
+                    UserDTO.Request dto = invocation.getArgument(0);
                     User u = new User();
                     u.setId(dto.id());
                     u.setName(dto.name());
                     u.setEmail(dto.email());
                     u.setBirthDate(dto.birthDate());
-                    if (dto.createdAt() != null) {
-                        u.setCreatedAt(dto.createdAt().atStartOfDay());
-                    }
-                    if (dto.lastUpdate() != null) {
-                        u.setLastUpdate(dto.lastUpdate().atStartOfDay());
-                    }
                     return u;
                 });
 
-        // Mapeamento Entity -> DTO
-        lenient().when(modelMapper.map(any(User.class), eq(UserDTO.class)))
+        lenient().when(modelMapper.map(any(User.class), eq(UserDTO.Response.class)))
                 .thenAnswer(invocation -> {
                     User u = invocation.getArgument(0);
-                    LocalDateTime criacao = u.getCreatedAt();
-                    LocalDateTime edicao  = u.getLastUpdate();
-
-                    return new UserDTO(
-                            u.getId(),
+                    return new UserDTO.Response(
                             u.getName(),
                             u.getEmail(),
-                            u.getBirthDate(),
-                            criacao != null ? criacao.toLocalDate() : null,
-                            edicao != null ? edicao.toLocalDate() : null
+                            u.getBirthDate()
                     );
                 });
     }
 
-    private User buildUser(String id, String nome, String email) {
+    private User buildUser(String id, String name, String email) {
         User u = new User();
         u.setId(id);
-        u.setName(nome);
+        u.setName(name);
         u.setEmail(email);
         u.setBirthDate(LocalDate.of(2000, 1, 1));
         return u;
     }
 
-    private UserDTO buildDTO(String id, String nome, String email) {
-        return new UserDTO(
+    private UserDTO.Request buildRequest(String id, String name, String email) {
+        return new UserDTO.Request(
                 id,
-                nome,
+                name,
                 email,
                 LocalDate.of(2000, 1, 1),
                 null,
@@ -94,34 +80,32 @@ class UserServiceTest {
         );
     }
 
-
     // INSERT
-
     @Test
-    void insert_sucess() {
-        UserDTO dto = buildDTO("00H00000000000000000000001", "Fulano", "fulano@email.com");
-        User saved = buildUser("01H00000000000000000000001", "Fulano", "fulano@email.com");
+    void insert_shouldReturnResponse_whenValidRequest() {
+        UserDTO.Request dto = buildRequest("00H00000000000000000000001",
+                "Fulano", "fulano@email.com");
+        User saved = buildUser("01H00000000000000000000001",
+                "Fulano", "fulano@email.com");
 
-        // Aceita qualquer String (inclusive null) para evitar PotentialStubbingProblem
-        when(repository.existsByEmail(any())).thenReturn(false);
+        when(repository.existsByEmail(dto.email())).thenReturn(false);
         when(repository.save(any(User.class))).thenReturn(saved);
-        when(modelMapper.map(saved, UserDTO.class))
-                .thenReturn(buildDTO("01H00000000000000000000001", "Fulano", "fulano@email.com"));
 
-        UserDTO result = service.insert(dto);
+        UserDTO.Response result = service.insert(dto);
 
         assertEquals("Fulano", result.name());
         assertEquals("fulano@email.com", result.email());
-        assertEquals("01H00000000000000000000001", result.id());
-        verify(repository).existsByEmail(any());
+        assertEquals(LocalDate.of(2000, 1, 1), result.birthDate());
+        verify(repository).existsByEmail(dto.email());
         verify(repository).save(any(User.class));
     }
 
     @Test
-    void insert_emailAlreadyExists() {
-        UserDTO dto = buildDTO("00H00000000000000000000001", "Fulano", "email@jaexiste.com");
+    void insert_shouldThrowIllegalArgumentException_whenEmailAlreadyExists() {
+        UserDTO.Request dto = buildRequest("00H00000000000000000000001",
+                "Fulano", "email@jaexiste.com");
 
-        when(repository.existsByEmail(any())).thenReturn(true);
+        when(repository.existsByEmail(dto.email())).thenReturn(true);
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
@@ -129,24 +113,21 @@ class UserServiceTest {
         );
 
         assertTrue(ex.getMessage().toLowerCase().contains("e-mail"));
-        verify(repository).existsByEmail(any());
+        verify(repository).existsByEmail(dto.email());
         verify(repository, never()).save(any());
     }
 
     // FIND ALL
-
     @Test
-    void findAll_sucess() {
-        User u1 = buildUser("01H00000000000000000000001", "Fulano", "f1@email.com");
-        User u2 = buildUser("02H00000000000000000000001", "Ciclano", "f2@email.com");
+    void findAll_shouldReturnListOfResponses_whenUsersExist() {
+        User u1 = buildUser("01H00000000000000000000001",
+                "Fulano", "f1@email.com");
+        User u2 = buildUser("02H00000000000000000000001",
+                "Ciclano", "f2@email.com");
 
         when(repository.findAll()).thenReturn(Arrays.asList(u1, u2));
-        when(modelMapper.map(u1, UserDTO.class))
-                .thenReturn(buildDTO("01H00000000000000000000001", "Fulano", "f1@email.com"));
-        when(modelMapper.map(u2, UserDTO.class))
-                .thenReturn(buildDTO("02H00000000000000000000001", "Ciclano", "f2@email.com"));
 
-        List<UserDTO> result = service.findAll();
+        List<UserDTO.Response> result = service.findAll();
 
         assertEquals(2, result.size());
         assertEquals("Fulano", result.get(0).name());
@@ -154,29 +135,41 @@ class UserServiceTest {
         verify(repository).findAll();
     }
 
-    // FIND BY ID
-
     @Test
-    void findById_sucess() {
-        User u = buildUser("01H00000000000000000000001", "Fulano", "fulano@email.com");
+    void findAll_shouldReturnEmptyList_whenNoUsersExist() {
+        when(repository.findAll()).thenReturn(Collections.emptyList());
 
-        when(repository.findById("01H00000000000000000000001")).thenReturn(Optional.of(u));
-        when(modelMapper.map(u, UserDTO.class))
-                .thenReturn(buildDTO("01H00000000000000000000001", "Fulano", "fulano@email.com"));
+        List<UserDTO.Response> result = service.findAll();
 
-        UserDTO result = service.findById("01H00000000000000000000001");
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(repository).findAll();
+    }
 
-        assertEquals("01H00000000000000000000001", result.id());
+    // FIND BY ID
+    @Test
+    void findById_shouldReturnResponse_whenIdExists() {
+        User u = buildUser("01H00000000000000000000001",
+                "Fulano", "fulano@email.com");
+
+        when(repository.findById("01H00000000000000000000001"))
+                .thenReturn(Optional.of(u));
+
+        UserDTO.Response result = service.findById("01H00000000000000000000001");
+
         assertEquals("Fulano", result.name());
+        assertEquals("fulano@email.com", result.email());
+        assertEquals(LocalDate.of(2000, 1, 1), result.birthDate());
         verify(repository).findById("01H00000000000000000000001");
     }
 
     @Test
-    void findById_idNotFound() {
-        when(repository.findById("01H00000000000000000000001")).thenReturn(Optional.empty());
+    void findById_shouldThrowEntityNotFoundException_whenIdDoesNotExist() {
+        when(repository.findById("01H00000000000000000000001"))
+                .thenReturn(Optional.empty());
 
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
+        EntityNotFoundException ex = assertThrows(
+                EntityNotFoundException.class,
                 () -> service.findById("01H00000000000000000000001")
         );
 
@@ -185,35 +178,39 @@ class UserServiceTest {
     }
 
     // UPDATE
-
     @Test
-    void update_sucess() {
-        UserDTO dto = buildDTO("01H00000000000000000000001", "Novo Nome", "novo@email.com");
-        User existing = buildUser("01H00000000000000000000001", "Antigo Nome", "antigo@email.com");
-        User updated  = buildUser("01H00000000000000000000001", "Novo Nome", "novo@email.com");
+    void update_shouldReturnUpdatedResponse_whenValidRequestAndIdExists() {
+        UserDTO.Request dto = buildRequest("01H00000000000000000000001",
+                "Novo Nome", "novo@email.com");
+        User existing = buildUser("01H00000000000000000000001",
+                "Antigo Nome", "antigo@email.com");
+        User updated = buildUser("01H00000000000000000000001",
+                "Novo Nome", "novo@email.com");
 
-        when(repository.getReferenceById("01H00000000000000000000001")).thenReturn(existing);
-        when(repository.existsByEmail(any())).thenReturn(false);
+        when(repository.getReferenceById("01H00000000000000000000001"))
+                .thenReturn(existing);
+        when(repository.existsByEmail(dto.email())).thenReturn(false);
         when(repository.save(existing)).thenReturn(updated);
-        when(modelMapper.map(updated, UserDTO.class))
-                .thenReturn(buildDTO("01H00000000000000000000001", "Novo Nome", "novo@email.com"));
 
-        UserDTO result = service.update("01H00000000000000000000001", dto);
+        UserDTO.Response result = service.update("01H00000000000000000000001", dto);
 
-        assertEquals("01H00000000000000000000001", result.id());
         assertEquals("Novo Nome", result.name());
         assertEquals("novo@email.com", result.email());
         verify(repository).getReferenceById("01H00000000000000000000001");
+        verify(repository).existsByEmail(dto.email());
         verify(repository).save(existing);
     }
 
     @Test
-    void update_emailAlreadyExists() {
-        UserDTO dto = buildDTO("01H00000000000000000000001", "Fulano", "duplicado@email.com");
-        User existing = buildUser("01H00000000000000000000001", "Fulano", "antigo@email.com");
+    void update_shouldThrowIllegalArgumentException_whenEmailAlreadyExists() {
+        UserDTO.Request dto = buildRequest("01H00000000000000000000001",
+                "Fulano", "duplicado@email.com");
+        User existing = buildUser("01H00000000000000000000001",
+                "Fulano", "antigo@email.com");
 
-        when(repository.getReferenceById("01H00000000000000000000001")).thenReturn(existing);
-        when(repository.existsByEmail(any())).thenReturn(true);
+        when(repository.getReferenceById("01H00000000000000000000001"))
+                .thenReturn(existing);
+        when(repository.existsByEmail(dto.email())).thenReturn(true);
 
         IllegalArgumentException ex = assertThrows(
                 IllegalArgumentException.class,
@@ -221,13 +218,14 @@ class UserServiceTest {
         );
 
         assertTrue(ex.getMessage().toLowerCase().contains("e-mail"));
-        verify(repository).existsByEmail(any());
+        verify(repository).existsByEmail(dto.email());
         verify(repository, never()).save(any());
     }
 
     @Test
-    void update_idNotFound() {
-        UserDTO dto = buildDTO("01H00000000000000000000001", "Fulano", "email@email.com");
+    void update_shouldThrowEntityNotFoundException_whenIdDoesNotExist() {
+        UserDTO.Request dto = buildRequest("01H00000000000000000000001",
+                "Fulano", "email@email.com");
 
         when(repository.getReferenceById("01H00000000000000000000001"))
                 .thenThrow(new EntityNotFoundException("Usuário não encontrado"));
@@ -242,11 +240,12 @@ class UserServiceTest {
     }
 
     // DELETE
-
     @Test
-    void delete_sucess() {
-        when(repository.existsById("01H00000000000000000000001")).thenReturn(true);
-        doNothing().when(repository).deleteById("01H00000000000000000000001");
+    void delete_shouldDeleteUser_whenIdExists() {
+        when(repository.existsById("01H00000000000000000000001"))
+                .thenReturn(true);
+        doNothing().when(repository)
+                .deleteById("01H00000000000000000000001");
 
         service.delete("01H00000000000000000000001");
 
@@ -255,11 +254,12 @@ class UserServiceTest {
     }
 
     @Test
-    void delete_idNotFound() {
-        when(repository.existsById("01H00000000000000000000001")).thenReturn(false);
+    void delete_shouldThrowEntityNotFoundException_whenIdDoesNotExist() {
+        when(repository.existsById("01H00000000000000000000001"))
+                .thenReturn(false);
 
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
+        EntityNotFoundException ex = assertThrows(
+                EntityNotFoundException.class,
                 () -> service.delete("01H00000000000000000000001")
         );
 
@@ -269,8 +269,9 @@ class UserServiceTest {
     }
 
     @Test
-    void delete_referenceIntegrityFail() {
-        when(repository.existsById("01H00000000000000000000001")).thenReturn(true);
+    void delete_shouldThrowIllegalArgumentException_whenDataIntegrityViolationOccurs() {
+        when(repository.existsById("01H00000000000000000000001"))
+                .thenReturn(true);
         doThrow(new DataIntegrityViolationException("erro"))
                 .when(repository).deleteById("01H00000000000000000000001");
 

@@ -86,7 +86,13 @@
             <artifactId>ulid-creator</artifactId>
             <version>5.2.3</version>
         </dependency>
-	</dependencies>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <version>1.3.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
 	<build>
 		<plugins>
