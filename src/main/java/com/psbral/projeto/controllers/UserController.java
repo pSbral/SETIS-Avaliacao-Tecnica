@@ -25,11 +25,10 @@ public class UserController {
     public ResponseEntity<UserDTO.Response> insert(@RequestBody @Valid UserDTO.Request dto){
         UserDTO.Response saved = service.insert(dto);
 
-        // O URI estava sendo salvo com o ID. Como o response ta voltando sem ID eu acabei mudando pra salvar com o nome.
         URI uri = ServletUriComponentsBuilder
                 .fromCurrentRequest()
-                .path("/{name}")
-                .buildAndExpand(saved.name())
+                .path("/{id}")
+                .buildAndExpand(dto.id())
                 .toUri();
 
         return ResponseEntity.created(uri).body(saved);
