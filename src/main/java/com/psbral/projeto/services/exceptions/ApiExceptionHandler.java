@@ -1,6 +1,7 @@
 package com.psbral.projeto.services.exceptions;
 
 import com.psbral.projeto.services.exceptions.models.ApiError;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,65 +14,58 @@ import java.time.Instant;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
-    // 400 - IllegalArgumentException
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiError> handleIllegalArgument(
-            IllegalArgumentException ex,
-            HttpServletRequest request
-    ) {
-        HttpStatus status = HttpStatus.BAD_REQUEST;
-
-        ApiError body = new ApiError(
-                Instant.now(),
-                status.value(),
-                ex.getMessage(),
-                "Bad Request",
-                request.getRequestURI()
-        );
-
-        return ResponseEntity.status(status).body(body);
-    }
-
-    // 400 - NotValid
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiError> handleValidation(
-            MethodArgumentNotValidException ex,
-            HttpServletRequest request
-    ) {
-        HttpStatus status = HttpStatus.BAD_REQUEST;
-
-        String message = ex.getBindingResult().getFieldErrors()
-                .stream()
-                .map(err -> err.getField() + ": " + err.getDefaultMessage())
-                .findFirst()
-                .orElse("Erro de validação");
+    private ResponseEntity<ApiError> buildError(HttpStatus status,
+                                                String message,
+                                                String error,
+                                                HttpServletRequest request) {
 
         ApiError body = new ApiError(
                 Instant.now(),
                 status.value(),
                 message,
-                "Validation error",
+                error,
                 request.getRequestURI()
         );
 
         return ResponseEntity.status(status).body(body);
     }
 
-    // Fallback -> 500
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpected(
-            Exception ex,
-            HttpServletRequest request
-    ) {
-        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+    // 404
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ApiError> handleEntityNotFound(EntityNotFoundException ex,
+                                                         HttpServletRequest request) {
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), "Not Found", request);
+    }
 
-        ApiError body = new ApiError(
-                Instant.now(),
-                status.value(),
+    // 400 (@Valid)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex,
+                                                     HttpServletRequest request) {
+
+        String defaultMessage = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .findFirst()
+                .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                .orElse("Validation error");
+
+        return buildError(HttpStatus.BAD_REQUEST, defaultMessage, "Validation error", request);
+    }
+
+    // 400
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex,
+                                                          HttpServletRequest request) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), "Bad Request", request);
+    }
+
+    // 500
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex,
+                                                     HttpServletRequest request) {
+        return buildError(HttpStatus.INTERNAL_SERVER_ERROR,
                 "Unexpected error",
                 "Internal Server Error",
-                request.getRequestURI()
-        );
-        return ResponseEntity.status(status).body(body);
+                request);
     }
 }

@@ -2,7 +2,6 @@ package com.psbral.projeto.services;
 
 import com.psbral.projeto.dto.UserDTO;
 import com.psbral.projeto.models.User;
-import com.psbral.projeto.repository.ServiceRepository;
 import com.psbral.projeto.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
@@ -23,7 +22,7 @@ public class UserService implements ServiceRepository {
     // CREATE
     @Override
     @Transactional
-    public UserDTO insert(UserDTO dto) {
+    public UserDTO.Response insert(UserDTO.Request dto) {
 
         if (repository.existsByEmail(dto.email())) {
             throw new IllegalArgumentException("E-mail já cadastrado: " + dto.email());
@@ -33,33 +32,33 @@ public class UserService implements ServiceRepository {
         entity.onCreate();
         User finalEntity = repository.save(entity);
 
-        return modelMapper.map(finalEntity, UserDTO.class);
+        return modelMapper.map(finalEntity, UserDTO.Response.class);
     }
 
 
     // ALL
     @Override
     @Transactional(readOnly = true)
-    public List<UserDTO> findAll() {
+    public List<UserDTO.Response> findAll() {
         return repository.findAll().stream()
-                .map(i -> modelMapper.map(i, UserDTO.class))
+                .map(i -> modelMapper.map(i, UserDTO.Response.class))
                 .collect(Collectors.toList());
     }
 
     // BY ID
     @Override
     @Transactional(readOnly = true)
-    public UserDTO findById(String id) {
+    public UserDTO.Response findById(String id) {
         User entity = repository.findById(id).orElseThrow(
-                () -> new IllegalArgumentException("Usuário não encontrado - id: " + id)
+                () -> new EntityNotFoundException("Usuário não encontrado - id: " + id)
         );
 
-        return modelMapper.map(entity, UserDTO.class);
+        return modelMapper.map(entity, UserDTO.Response.class);
     }
 
     // UPDATE
     // COPY
-    private void copyToUser(UserDTO source, User target) {
+    private void copyToUser(UserDTO.Request source, User target) {
         target.setName(source.name());
         target.setEmail(source.email());
         target.setBirthDate(source.birthDate());
@@ -67,7 +66,7 @@ public class UserService implements ServiceRepository {
 
     @Override
     @Transactional
-    public UserDTO update(String id, UserDTO entity) {
+    public UserDTO.Response update(String id, UserDTO.Request entity) {
         try {
 
             User user = repository.getReferenceById(id);
@@ -80,7 +79,7 @@ public class UserService implements ServiceRepository {
 
             copyToUser(entity, user);
             user = repository.save(user);
-            return modelMapper.map(user, UserDTO.class);
+            return modelMapper.map(user, UserDTO.Response.class);
 
         } catch (EntityNotFoundException e) {
             throw new EntityNotFoundException("Usuário não encontrado - id: " + id);
@@ -93,7 +92,7 @@ public class UserService implements ServiceRepository {
     public void delete(String id) {
 
         if (!repository.existsById(id)) {
-            throw new IllegalArgumentException("Usuário não encontrado - id: " + id);
+            throw new EntityNotFoundException("Usuário não encontrado - id: " + id);
         }
 
         try {

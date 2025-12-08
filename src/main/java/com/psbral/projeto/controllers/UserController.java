@@ -1,7 +1,7 @@
 package com.psbral.projeto.controllers;
 
 import com.psbral.projeto.dto.UserDTO;
-import com.psbral.projeto.repository.ServiceRepository;
+import com.psbral.projeto.services.ServiceRepository;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -21,47 +21,45 @@ public class UserController {
     private final ServiceRepository service;
 
     // CREATE
-    // POST /users
     @PostMapping
-    public ResponseEntity<UserDTO> insert(@RequestBody @Valid UserDTO dto){
-        UserDTO saved = service.insert(dto);
+    public ResponseEntity<UserDTO.Response> insert(@RequestBody @Valid UserDTO.Request dto){
+        UserDTO.Response saved = service.insert(dto);
 
+        // O URI estava sendo salvo com o ID. Como o response ta voltando sem ID eu acabei mudando pra salvar com o nome.
         URI uri = ServletUriComponentsBuilder
                 .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(saved.id())
+                .path("/{name}")
+                .buildAndExpand(saved.name())
                 .toUri();
 
-        // 201 Created + Location header
         return ResponseEntity.created(uri).body(saved);
     }
 
     // READ – FIND ALL
-    // GET /users
     @GetMapping
-    public ResponseEntity<List<UserDTO>> findAll() {
-        List<UserDTO> dto = service.findAll();
+    public ResponseEntity<List<UserDTO.Response>> findAll() {
+        List<UserDTO.Response> dto = service.findAll();
+        if (dto.isEmpty()) {
+            return ResponseEntity.noContent().build();   // 204 :)
+        }
         return ResponseEntity.ok(dto);
     }
 
     // READ – FIND BY ID
-    // GET /users/{id}
     @GetMapping("/{id}")
-    public ResponseEntity<UserDTO> findById(@PathVariable @NotNull String id) {
-        UserDTO dto = service.findById(id);
+    public ResponseEntity<UserDTO.Response> findById(@PathVariable @NotNull String id) {
+        UserDTO.Response dto = service.findById(id);
         return ResponseEntity.ok(dto);
     }
 
     // UPDATE
-    // PUT /users/{id}
     @PutMapping("/{id}")
-    public UserDTO update(@PathVariable String id,
-                          @Valid @RequestBody UserDTO user) {
+    public UserDTO.Response update(@PathVariable String id,
+                          @Valid @RequestBody UserDTO.Request user) {
         return service.update(id, user);
     }
 
     // DELETE
-    // DELETE /users/{id}
     @DeleteMapping("/{id}")
     public void delete(@PathVariable @NotNull String id) {
         service.delete(id);
