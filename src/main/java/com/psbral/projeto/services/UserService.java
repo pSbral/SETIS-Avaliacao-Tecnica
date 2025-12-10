@@ -5,10 +5,10 @@ import com.psbral.projeto.models.User;
 import com.psbral.projeto.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
-import org.modelmapper.ModelMapper;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,7 +17,6 @@ import java.util.stream.Collectors;
 public class UserService implements ServiceRepository {
 
     private final UserRepository repository;
-    private final ModelMapper modelMapper;
 
     // CREATE
     @Override
@@ -28,62 +27,68 @@ public class UserService implements ServiceRepository {
             throw new IllegalArgumentException("E-mail já cadastrado: " + dto.email());
         }
 
-        User entity = modelMapper.map(dto, User.class);
-        entity.onCreate();
-        User finalEntity = repository.save(entity);
+        User entity = new User();
+        copyToUser(dto, entity);          // preenche name, email, birthDate
 
-        return modelMapper.map(finalEntity, UserDTO.Response.class);
+        User saved = repository.save(entity);
+
+        return toResponse(saved);         // monta o DTO de resposta
     }
 
-
-    // ALL
+    // READ – FIND ALL
     @Override
     @Transactional(readOnly = true)
     public List<UserDTO.Response> findAll() {
-        return repository.findAll().stream()
-                .map(i -> modelMapper.map(i, UserDTO.Response.class))
+        return repository.findAll()
+                .stream()
+                .map(this::toResponse)
                 .collect(Collectors.toList());
     }
 
-    // BY ID
+    // READ – FIND BY ID
     @Override
     @Transactional(readOnly = true)
     public UserDTO.Response findById(String id) {
-        User entity = repository.findById(id).orElseThrow(
-                () -> new EntityNotFoundException("Usuário não encontrado - id: " + id)
-        );
+        User user = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Usuário não encontrado - id: " + id
+                ));
 
-        return modelMapper.map(entity, UserDTO.Response.class);
+        return toResponse(user);
     }
 
     // UPDATE
-    // COPY
+    @Override
+    @Transactional
+    public UserDTO.Response update(String id, UserDTO.Request dto) {
+
+        User entity = repository.getReferenceById(id);
+
+        if (!entity.getEmail().equals(dto.email())
+                && repository.existsByEmail(dto.email())) {
+            throw new IllegalArgumentException("E-mail já cadastrado: " + dto.email());
+        }
+
+        copyToUser(dto, entity);
+
+        User saved = repository.save(entity);
+
+        return toResponse(saved);
+    }
+
     private void copyToUser(UserDTO.Request source, User target) {
         target.setName(source.name());
         target.setEmail(source.email());
         target.setBirthDate(source.birthDate());
+        // createdAt e lastUpdate continuam sendo controlados pelo @PrePersist / @PreUpdate
     }
 
-    @Override
-    @Transactional
-    public UserDTO.Response update(String id, UserDTO.Request entity) {
-        try {
-
-            User user = repository.getReferenceById(id);
-
-            if (!user.getEmail().equals(entity.email())
-                    && repository.existsByEmail(entity.email())) {
-
-                throw new IllegalArgumentException("E-mail já cadastrado: " + entity.email());
-            }
-
-            copyToUser(entity, user);
-            user = repository.save(user);
-            return modelMapper.map(user, UserDTO.Response.class);
-
-        } catch (EntityNotFoundException e) {
-            throw new EntityNotFoundException("Usuário não encontrado - id: " + id);
-        }
+    private UserDTO.Response toResponse(User u) {
+        return new UserDTO.Response(
+                u.getName(),
+                u.getEmail(),
+                u.getBirthDate()
+        );
     }
 
     // DELETE

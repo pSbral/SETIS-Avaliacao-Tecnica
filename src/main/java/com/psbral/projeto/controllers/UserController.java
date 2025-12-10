@@ -24,15 +24,9 @@ public class UserController {
     @PostMapping
     public ResponseEntity<UserDTO.Response> insert(@RequestBody @Valid UserDTO.Request dto){
         UserDTO.Response saved = service.insert(dto);
-
-        URI uri = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(dto.id())
-                .toUri();
-
-        return ResponseEntity.created(uri).body(saved);
+        return ResponseEntity.status(201).body(saved);
     }
+
 
     // READ – FIND ALL
     @GetMapping

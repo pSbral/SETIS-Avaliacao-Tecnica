@@ -12,7 +12,6 @@ import lombok.*;
 @Getter
 @Setter
 
-
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "tb_usuario", uniqueConstraints = {
@@ -20,22 +19,22 @@ import lombok.*;
 })
 public class User {
     @Id
-    @Column(length = 26, nullable = false, updatable = false)
+    @Column(name = "id", length = 26, nullable = false, updatable = false)
     private String id;
 
-	@Column(length = 50, nullable = false)
+	@Column(name = "name", length = 50, nullable = false)
 	private String name;
 
-    @Column(length = 254, nullable = false, unique = true)
+    @Column(name = "email", length = 254, nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(nullable = false)
+    @Column(name = "last_update")
     private LocalDateTime lastUpdate;
 
     @PrePersist
@@ -49,6 +48,7 @@ public class User {
 
     @PreUpdate
     public void onUpdate() {
-        this.createdAt = LocalDateTime.now();
+        this.lastUpdate = LocalDateTime.now();
     }
+
 }
